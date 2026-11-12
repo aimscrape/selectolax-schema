@@ -12,6 +12,22 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
+## [0.2.0] - 2026-11-12
+
+### Added
+
+- Add `postprocess` for whole-field post-processing in typed and dict specs.
+
+### Changed
+
+- Retain `callback` as a deprecated compatibility alias for `postprocess`, with a
+  `DeprecationWarning` pointing to the caller during extraction and schema generation.
+- Reject fields that set both `postprocess` and `callback` to non-`None` values.
+
+### Fixed
+
+### Removed
+
 ## [0.1.1] - 2026-11-12
 
 ### Added
