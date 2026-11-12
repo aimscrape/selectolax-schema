@@ -239,8 +239,14 @@ def _eval_field(context: Any, field_spec: Any, path: str, options: _Options) -> 
             )
         if declared_type == "array" and array_items_type == "object" and not has_fields:
             raise ExtractError(f"{path}.fields is required for type:'array<object>'.")
-        if declared_type == "array" and array_items_type in _SCALAR_TYPES and has_fields:
-            raise ExtractError(f"{path}.fields is only allowed for type:'array<object>'.")
+        if (
+            declared_type == "array"
+            and array_items_type in _SCALAR_TYPES
+            and has_fields
+        ):
+            raise ExtractError(
+                f"{path}.fields is only allowed for type:'array<object>'."
+            )
 
         if declared_type == "object" and not has_fields:
             raise ExtractError(f"{path}.type is 'object' so {path}.fields is required.")
@@ -253,7 +259,9 @@ def _eval_field(context: Any, field_spec: Any, path: str, options: _Options) -> 
             and default_value is not _MISSING
             and not isinstance(default_value, Mapping)
         ):
-            raise ExtractError(f"{path}.defaultValue must be a mapping for type:'object'.")
+            raise ExtractError(
+                f"{path}.defaultValue must be a mapping for type:'object'."
+            )
         if (
             declared_type == "array"
             and array_items_type == "object"
@@ -303,7 +311,9 @@ def _eval_field(context: Any, field_spec: Any, path: str, options: _Options) -> 
             if css is None:
                 value = _eval_fields(context, fields, options=options)
                 if transforms:
-                    value = _apply_transforms(value, transforms, path=f"{path}.transform")
+                    value = _apply_transforms(
+                        value, transforms, path=f"{path}.transform"
+                    )
                 if value is None and default_value is not _MISSING:
                     value = default_value
                 value = _enforce_nullable(value, nullable=nullable, path=path)
@@ -311,7 +321,9 @@ def _eval_field(context: Any, field_spec: Any, path: str, options: _Options) -> 
                 return _enforce_required(value, bool(required), path=path)
 
             if not isinstance(css, str) or not css:
-                raise ExtractError(f"{path}.css must be a non-empty string when provided.")
+                raise ExtractError(
+                    f"{path}.css must be a non-empty string when provided."
+                )
             nodes = _css(context, css)
             if not nodes:
                 value = _enforce_nullable(None, nullable=nullable, path=path)
@@ -355,7 +367,9 @@ def _eval_field(context: Any, field_spec: Any, path: str, options: _Options) -> 
             values: list[Any] = []
             for node in nodes:
                 raw = extractor(node)
-                transformed = _apply_transforms(raw, transforms, path=f"{path}.transform")
+                transformed = _apply_transforms(
+                    raw, transforms, path=f"{path}.transform"
+                )
                 if transformed is None or transformed == "" or transformed == []:
                     if default_value is not _MISSING and not isinstance(
                         default_value, list
@@ -442,7 +456,11 @@ def _eval_field(context: Any, field_spec: Any, path: str, options: _Options) -> 
         if _is_empty(value) and default_value is not _MISSING:
             value = default_value
         value = _coerce_scalar_type(value, declared_type=declared_type, path=path)
-        if declared_type == "string" and should_strip_strings and isinstance(value, str):
+        if (
+            declared_type == "string"
+            and should_strip_strings
+            and isinstance(value, str)
+        ):
             value = value.strip()
         if _is_empty(value) and default_value is not _MISSING:
             value = _coerce_scalar_type(
@@ -1046,4 +1064,3 @@ def _is_empty(value: Any) -> bool:
     if isinstance(value, list) and len(value) == 0:
         return True
     return False
-

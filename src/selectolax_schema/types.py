@@ -172,4 +172,3 @@ class Schema:
         from .core import schema as _schema
 
         return _schema(self.to_dict(), title=title)
-
