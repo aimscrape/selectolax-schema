@@ -4,11 +4,13 @@ import argparse
 import json
 import sys
 
+from . import __version__
 from .core import ExtractError, ValidationError, extract_from_file, schema_from_file
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="selectolax-schema")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--spec", required=True, help="Path to YAML spec file.")
     parser.add_argument(
         "--schema",

@@ -19,3 +19,4 @@ All notable changes to this project will be documented in this file.
 - Initial selectolax-backed implementation, compatible with the extraction,
   typed-spec, JSON Schema, callback, transform, and CLI behavior of
   `scrapling-schema` 1.1.3.
+- Runtime and CLI version reporting derived from installed distribution metadata.
