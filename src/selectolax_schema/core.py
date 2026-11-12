@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Mapping
+from typing import Any
 
 import yaml
 from selectolax.lexbor import LexborHTMLParser
@@ -28,8 +29,11 @@ class _Options:
 
 
 def extract_from_yaml(html: str, yaml_spec: str) -> Any:
-    spec = _load_yaml_spec(yaml_spec)
-    return extract(html, spec)
+    try:
+        spec = _load_yaml_spec(yaml_spec)
+        return extract(html, spec)
+    finally:
+        del html
 
 
 def schema_from_yaml(yaml_spec: str, *, title: str | None = None) -> dict[str, Any]:
@@ -38,13 +42,16 @@ def schema_from_yaml(yaml_spec: str, *, title: str | None = None) -> dict[str, A
 
 
 def extract_from_file(html: str, spec_path: str) -> Any:
-    with open(spec_path, "r", encoding="utf-8") as f:
-        spec = yaml.safe_load(f)
-    return extract(html, spec)
+    try:
+        with open(spec_path, encoding="utf-8") as f:
+            spec = yaml.safe_load(f)
+        return extract(html, spec)
+    finally:
+        del html
 
 
 def schema_from_file(spec_path: str, *, title: str | None = None) -> dict[str, Any]:
-    with open(spec_path, "r", encoding="utf-8") as f:
+    with open(spec_path, encoding="utf-8") as f:
         spec = yaml.safe_load(f)
     if not isinstance(spec, Mapping):
         raise ExtractError("Spec must be a mapping (dict-like).")
@@ -52,18 +59,55 @@ def schema_from_file(spec_path: str, *, title: str | None = None) -> dict[str, A
 
 
 def extract(html: str, spec: Mapping[str, Any]) -> Any:
-    if not isinstance(spec, Mapping):
-        raise ExtractError("Spec must be a mapping (dict-like).")
+    parser = None
+    try:
+        if not isinstance(spec, Mapping):
+            raise ExtractError("Spec must be a mapping (dict-like).")
 
-    options = _parse_options(spec.get("options", {}))
-    html = _preprocess_html(html, options)
+        options = _parse_options(spec.get("options", {}))
+        fields = spec.get("fields")
+        if not isinstance(fields, Mapping):
+            raise ExtractError("Spec must contain top-level 'fields' mapping.")
 
-    parser = LexborHTMLParser(html)
-    fields = spec.get("fields")
-    if not isinstance(fields, Mapping):
-        raise ExtractError("Spec must contain top-level 'fields' mapping.")
+        html = _preprocess_html(html, options)
+        parser = LexborHTMLParser(html)
+        # Parsing is complete; release the preprocessing string before callbacks
+        # and field evaluation allocate their own results.
+        html = ""
+        return _eval_fields(parser, fields, options=options)
+    except BaseException as error:
+        _clear_extraction_frames(error)
+        raise
+    finally:
+        # The active frame cannot be cleared by _clear_extraction_frames().
+        del parser, html
 
-    return _eval_fields(parser, fields, options=options)
+
+def _clear_extraction_frames(error: BaseException) -> None:
+    """Release library temporaries without removing tracebacks or user locals."""
+    pending = [error]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+
+        tb = current.__traceback__
+        while tb is not None:
+            frame = tb.tb_frame
+            if frame.f_globals is globals():
+                try:
+                    frame.clear()
+                except RuntimeError:
+                    # Reentrant extraction can include frames still executing.
+                    pass
+            tb = tb.tb_next
+
+        if current.__cause__ is not None:
+            pending.append(current.__cause__)
+        if current.__context__ is not None:
+            pending.append(current.__context__)
 
 
 def schema(spec: Mapping[str, Any], *, title: str | None = None) -> dict[str, Any]:
@@ -793,24 +837,31 @@ def _node_text(node: Any) -> str | None:
     # ``Node.text(deep=True)`` includes script/style contents.  The reference
     # implementation deliberately excludes those tags, so walk the selectolax
     # tree and collect decoded text nodes without mutating the parsed document.
-    def collect(current: Any) -> str:
+    # Keep only the next sibling at each depth, rather than every descendant.
+    # A single join avoids recursive closures and intermediate subtree strings.
+    parts: list[str] = []
+    pending = [node]
+    while pending:
+        current = pending.pop()
+        if current is not node:
+            sibling = getattr(current, "next", None)
+            if sibling is not None:
+                pending.append(sibling)
+
         tag = getattr(current, "tag", None)
         if tag in {"script", "style", "-comment"}:
-            return ""
+            continue
         if tag == "-text":
             text_method = getattr(current, "text", None)
             if callable(text_method):
-                return str(text_method(deep=False, separator="", strip=False))
-            return ""
+                parts.append(str(text_method(deep=False, separator="", strip=False)))
+            continue
 
-        parts: list[str] = []
         child = getattr(current, "child", None)
-        while child is not None:
-            parts.append(collect(child))
-            child = getattr(child, "next", None)
-        return "".join(parts)
+        if child is not None:
+            pending.append(child)
 
-    return collect(node)
+    return "".join(parts)
 
 
 def _node_own_text(node: Any) -> str | None:
