@@ -271,6 +271,10 @@ recursive closure cycles.
 After the DOM is built, `extract()` releases its reference to the preprocessed
 HTML string before evaluating fields.
 
+Field evaluation releases its DOM references on both normal return and failure.
+This also covers callbacks and transforms that catch an error, retain the
+exception, and return successfully.
+
 When `extract()` raises, it clears its finished internal traceback frames to
 release the DOM and temporary values. All extraction entry points drop their own
 HTML input references when they finish. Exception identity, messages, traceback

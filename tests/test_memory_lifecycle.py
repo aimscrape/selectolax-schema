@@ -300,6 +300,97 @@ def test_invalid_css_error_releases_dom() -> None:
         assert _live_extraction_objects() == before
 
 
+@pytest.mark.skipif(
+    sys.implementation.name != "cpython", reason="Checks reference-counted cleanup."
+)
+@pytest.mark.parametrize("hook", ["callback", "transform"])
+@pytest.mark.parametrize("error_source", ["nested-extraction", "hook-local"])
+@pytest.mark.parametrize(
+    "shape",
+    ["scalar", "scalar-array", "object", "object-array", "nested-object-array"],
+)
+def test_recovered_hook_errors_release_outer_dom(hook, error_source, shape) -> None:
+    errors = []
+    marker = object()
+
+    def recover(value):
+        _local_marker = marker
+        try:
+            if error_source == "nested-extraction":
+                extract(
+                    "<p>inner document</p>",
+                    {
+                        "fields": {
+                            "title": {
+                                "css": "h1",
+                                "type": "string",
+                                "required": True,
+                            }
+                        }
+                    },
+                )
+            else:
+                raise RuntimeError("recoverable hook error")
+        except (ValidationError, RuntimeError) as error:
+            errors.append(error)
+        return value
+
+    leaf = {"css": "span", "type": "string"}
+    object_fields = {"text": leaf}
+    fields = {
+        "scalar": {"css": "span", "type": "string"},
+        "scalar-array": {"css": "span", "type": "array<string>"},
+        "object": {"css": "article", "type": "object", "fields": object_fields},
+        "object-array": {
+            "css": "article",
+            "type": "array<object>",
+            "fields": object_fields,
+        },
+        "nested-object-array": {
+            "css": "section",
+            "type": "array<object>",
+            "fields": {
+                "items": {
+                    "css": "article",
+                    "type": "array<object>",
+                    "fields": object_fields,
+                }
+            },
+        },
+    }
+    field = fields[shape]
+    # Exercise a hook inside active object-array traversal, including the
+    # separate comprehension frames used by Python 3.10 and 3.11.
+    hook_field = leaf if shape == "nested-object-array" else field
+    hook_field[hook] = [recover] if hook == "transform" else recover
+    expected = {
+        "scalar": "one",
+        "scalar-array": ["one", "two"],
+        "object": {"text": "one"},
+        "object-array": [{"text": "one"}, {"text": "two"}],
+        "nested-object-array": [{"items": [{"text": "one"}, {"text": "two"}]}],
+    }
+    html = (
+        "<section><article><span>one</span></article>"
+        "<article><span>two</span></article></section>"
+    )
+
+    with _without_cyclic_gc():
+        before = _live_extraction_objects()
+        for _ in range(5):
+            assert extract(html, {"fields": {"result": field}}) == {
+                "result": expected[shape]
+            }
+
+        assert len(errors) >= 5
+        assert all(error.__traceback__ is not None for error in errors)
+        user_frame = errors[0].__traceback__.tb_frame
+        assert user_frame.f_code is recover.__code__
+        assert user_frame.f_locals["_local_marker"] is marker
+        assert "value" in user_frame.f_locals
+        assert _live_extraction_objects() == before
+
+
 @pytest.mark.parametrize("spec", [{}, {"fields": None}, {"fields": []}])
 def test_invalid_top_level_fields_do_not_construct_parser(monkeypatch, spec) -> None:
     def unexpected_parser(html):
