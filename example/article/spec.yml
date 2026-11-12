@@ -1,0 +1,28 @@
+options:
+  clear:
+    remove_tags: ["script", "style"]
+
+fields:
+  title:
+    css: "article h1"
+    type: "string"
+
+  author:
+    css: "article .author"
+    type: "string"
+    transform:
+      - regex_sub: { pattern: "^By\\s+", repl: "" }
+
+  published_at:
+    css: "article time"
+    type: "string"
+    attr: "datetime"
+
+  paragraphs:
+    css: "article .content p"
+    type: "array<string>"
+
+  keywords:
+    css: "article .keywords li"
+    type: "array<string>"
+

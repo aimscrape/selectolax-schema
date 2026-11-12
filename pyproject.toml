@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "selectolax-schema"
+version = "0.1.0"
+description = "Schema-driven HTML extraction powered by selectolax."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+  "selectolax>=0.3.0",
+  "PyYAML>=6.0.0",
+]
+
+[project.urls]
+Repository = "https://github.com/aimscrape/selectolax-schema"
+Issues = "https://github.com/aimscrape/selectolax-schema/issues"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[project.scripts]
+selectolax-schema = "selectolax_schema.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
