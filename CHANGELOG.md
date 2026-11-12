@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+## [0.2.0] - 2026-11-12
+
+### Added
+
 - Add `postprocess` for whole-field post-processing in typed and dict specs.
 
 ### Changed
