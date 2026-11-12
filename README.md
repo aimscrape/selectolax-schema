@@ -120,8 +120,15 @@ result = extract_from_yaml(html, yaml_spec)
 ## CLI
 
 ```bash
+selectolax-schema --version
 selectolax-schema --spec spec.yml --html-file page.html
 selectolax-schema --spec spec.yml --schema
+```
+
+The installed package version is also available in Python:
+
+```python
+from selectolax_schema import __version__
 ```
 
 ## Field reference

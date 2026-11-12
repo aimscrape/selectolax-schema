@@ -3,6 +3,22 @@
 This repo is set up to publish releases automatically via **GitHub Actions + PyPI Trusted Publishing (OIDC)**.
 That means you can publish to PyPI **without** storing a long-lived PyPI API token in GitHub secrets.
 
+## Version source of truth
+
+The only version that is edited is `[project].version` in `pyproject.toml`.
+The package's `selectolax_schema.__version__` and the CLI's `--version` output
+read the installed distribution metadata generated from that value, so they
+must not be updated separately.
+
+Use the version helper to inspect or preview a bump:
+
+```bash
+bin/version --current
+bin/version patch --dry-run
+bin/version minor --dry-run
+bin/version major --dry-run
+```
+
 ## 1) One-time setup (recommended): PyPI Trusted Publisher
 
 ### On PyPI

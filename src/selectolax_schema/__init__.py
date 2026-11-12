@@ -1,3 +1,5 @@
+from importlib.metadata import PackageNotFoundError, version
+
 from .core import (
     ExtractError,
     ValidationError,
@@ -21,7 +23,14 @@ from .types import (
     TransformStep,
 )
 
+try:
+    __version__ = version("selectolax-schema")
+except PackageNotFoundError:
+    # Keep source-tree imports usable before the distribution is installed.
+    __version__ = "0+unknown"
+
 __all__ = [
+    "__version__",
     "ExtractError",
     "ValidationError",
     "extract",
