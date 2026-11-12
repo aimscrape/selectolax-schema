@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -32,6 +33,33 @@ def test_text_excludes_script_style_and_comments_without_mutating_tree() -> None
     # Reading the parent text must not decompose or otherwise mutate the tree.
     assert result["script"] == ""
     assert result["style_html"] == '<style>.bad {}</style>'
+
+
+def test_text_handles_deep_trees_without_recursion() -> None:
+    depth = sys.getrecursionlimit() + 100
+    html = (
+        '<div id="content">before'
+        + "<span>" * depth
+        + "deep"
+        + "</span>" * depth
+        + '<script>excluded</script>after</div><p>outside</p>'
+    )
+
+    assert extract(
+        html, {"fields": {"text": {"css": "#content", "type": "string"}}}
+    ) == {"text": "beforedeepafter"}
+
+
+def test_text_preserves_sibling_order_and_selection_boundaries() -> None:
+    html = (
+        '<div id="content">A<section>B<b>C</b>D<i>E</i>F</section>'
+        '<script>excluded</script>G<span>H<em>I</em>J</span>K</div>'
+        '<p>outside</p>'
+    )
+
+    assert extract(
+        html, {"fields": {"text": {"css": "#content", "type": "string"}}}
+    ) == {"text": "ABCDEFGHIJK"}
 
 
 @pytest.mark.parametrize("example", ["article", "product_list", "profiles"])
